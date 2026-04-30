@@ -3,564 +3,343 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>C Assistant</title>
+  <title>C Assistant — AI Coding Helper</title>
   <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <style>
-    /* ── Reset & base ───────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:        #1a1a2e;
-      --surface:   #16213e;
-      --surface2:  #0f3460;
-      --accent:    #a0c4ff;
-      --accent2:   #7eb8f7;
-      --text:      #dcdcdc;
-      --text-dim:  #8888aa;
-      --border:    #2a2a4a;
-      --btn-bg:    #252541;
-      --btn-hov:   #37375f;
-      --green:     #6bcb77;
-      --red:       #ff6b6b;
-      --radius:    10px;
+      --bg:      #0d0d1a; --surface: #13132a; --surface2: #1a1a3a;
+      --border:  #2a2a50; --accent:  #a0c4ff; --text:     #e0e0f0;
+      --dim:     #7070a0; --green:   #6bcb77; --red:      #ff6b6b;
+      --yellow:  #ffd166; --radius:  10px;
+      --font:    'Segoe UI', system-ui, sans-serif;
+      --mono:    'Cascadia Code', 'Consolas', monospace;
     }
+    html, body { height: 100%; overflow: hidden; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); display: flex; flex-direction: column; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+    /* topbar */
+    .topbar { display:flex; align-items:center; gap:14px; padding:10px 20px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+    .logo { width:34px; height:34px; border-radius:50%; background:var(--surface2); border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; color:var(--accent); flex-shrink:0; }
+    .topbar h1 { font-size:1rem; font-weight:700; color:var(--accent); }
+    .topbar .sub { font-size:0.72rem; color:var(--dim); }
+    .key-wrap { margin-left:auto; display:flex; align-items:center; gap:8px; }
+    .key-wrap label { font-size:0.75rem; color:var(--dim); white-space:nowrap; }
+    #apiKey { width:240px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:5px 10px; color:var(--text); font-size:0.8rem; font-family:var(--mono); outline:none; }
+    #apiKey:focus { border-color:var(--accent); }
+    .badge { font-size:0.7rem; padding:3px 9px; border-radius:20px; white-space:nowrap; }
+    .badge.ok  { background:#0d2a0d; color:var(--green); }
+    .badge.bad { background:#2a0d0d; color:var(--red); }
 
-    /* ── Header ─────────────────────────────────────────────── */
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    /* layout */
+    .workspace { flex:1; display:grid; grid-template-columns:210px 1fr 1fr; overflow:hidden; }
 
-    .logo {
-      width: 36px; height: 36px;
-      background: var(--btn-bg);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; font-weight: 800;
-      color: var(--accent);
-      border: 2px solid var(--accent);
-      flex-shrink: 0;
-    }
+    /* sidebar */
+    .sidebar { background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+    .sidebar-title { padding:10px 14px; font-size:0.7rem; font-weight:700; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid var(--border); }
+    .examples { flex:1; overflow-y:auto; padding:6px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+    .ex-item { padding:8px 10px; border-radius:7px; cursor:pointer; font-size:0.77rem; line-height:1.4; color:var(--dim); border:1px solid transparent; transition:all .15s; margin-bottom:4px; }
+    .ex-item:hover { background:var(--surface2); border-color:var(--border); color:var(--text); }
+    .ex-tag { font-size:0.63rem; padding:1px 6px; border-radius:10px; margin-bottom:3px; display:inline-block; }
+    .tag-easy   { background:#0d2a0d; color:var(--green); }
+    .tag-medium { background:#2a1d0d; color:var(--yellow); }
+    .tag-hard   { background:#2a0d0d; color:var(--red); }
+    .ex-name { font-weight:600; color:var(--text); display:block; margin-top:2px; }
+    .sidebar-divider { padding:10px 14px 4px; font-size:0.7rem; font-weight:700; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; border-top:1px solid var(--border); }
+    .history { padding:4px 6px; max-height:180px; overflow-y:auto; }
+    .hist-item { padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.73rem; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid transparent; transition:all .15s; margin-bottom:3px; }
+    .hist-item:hover { background:var(--surface2); color:var(--text); border-color:var(--border); }
+    .hist-mode { font-size:0.63rem; color:var(--accent); margin-right:4px; }
 
-    header h1 {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--accent);
-    }
+    /* panels */
+    .panel { display:flex; flex-direction:column; border-right:1px solid var(--border); overflow:hidden; }
+    .panel:last-child { border-right:none; }
+    .panel-hdr { padding:8px 14px; background:var(--surface); border-bottom:1px solid var(--border); font-size:0.72rem; font-weight:700; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; display:flex; align-items:center; gap:8px; }
+    .chars { margin-left:auto; font-size:0.68rem; color:var(--border); font-weight:400; }
+    textarea { flex:1; background:var(--bg); border:none; resize:none; padding:14px 16px; color:var(--text); font-family:var(--mono); font-size:0.87rem; line-height:1.6; outline:none; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+    textarea::placeholder { color:var(--border); }
 
-    header p {
-      font-size: 0.78rem;
-      color: var(--text-dim);
-      margin-left: auto;
-    }
+    /* buttons */
+    .btn-row { padding:10px 12px; display:flex; gap:7px; background:var(--surface); border-top:1px solid var(--border); flex-wrap:wrap; }
+    .btn { flex:1; min-width:68px; padding:8px 6px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface2); color:var(--text); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all .12s; display:flex; align-items:center; justify-content:center; gap:4px; }
+    .btn:hover { border-color:var(--accent); background:#1a2a4a; }
+    .btn:active { transform:scale(.97); }
+    .btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+    .btn.solution { border-color:var(--accent); color:var(--accent); }
+    .btn.solution:hover { background:#0d2040; }
+    .btn.clear { flex:0; min-width:36px; color:var(--red); border-color:transparent; background:transparent; }
 
-    /* ── API key bar ─────────────────────────────────────────── */
-    .key-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 24px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    /* output */
+    .output-scroll { flex:1; overflow-y:auto; padding:16px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+    .placeholder { text-align:center; margin-top:60px; color:var(--dim); font-size:0.85rem; line-height:1.8; }
+    .placeholder .icon { font-size:2.8rem; display:block; margin-bottom:12px; }
+    .mode-tag { display:inline-flex; align-items:center; gap:5px; padding:3px 11px; border-radius:20px; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:14px; }
+    .tag-explain  { background:#0d2a14; color:var(--green); }
+    .tag-hint     { background:#2a1f0d; color:var(--yellow); }
+    .tag-fix      { background:#2a0d0d; color:var(--red); }
+    .tag-solution { background:#0d1a2a; color:var(--accent); }
 
-    .key-bar label {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      white-space: nowrap;
-    }
+    /* markdown */
+    .md h1,.md h2,.md h3 { color:var(--accent); margin:16px 0 7px; }
+    .md h1 { font-size:1.1rem; }
+    .md h2 { font-size:1rem; border-bottom:1px solid var(--border); padding-bottom:4px; }
+    .md h3 { font-size:.92rem; }
+    .md p  { margin:7px 0; line-height:1.75; font-size:.88rem; }
+    .md ul,.md ol { margin:6px 0 6px 20px; font-size:.88rem; line-height:1.7; }
+    .md li { margin:3px 0; }
+    .md pre { background:#0a0e17; border:1px solid var(--border); border-radius:8px; margin:10px 0; overflow-x:auto; }
+    .md pre code { font-family:var(--mono); font-size:.8rem; line-height:1.5; }
+    .md code:not(pre code) { background:var(--surface2); padding:1px 5px; border-radius:4px; font-family:var(--mono); font-size:.82em; color:var(--accent); }
+    .md table { border-collapse:collapse; width:100%; margin:10px 0; font-size:.82rem; }
+    .md th,.md td { border:1px solid var(--border); padding:6px 11px; text-align:left; }
+    .md th { background:var(--surface); color:var(--accent); }
+    .md tr:nth-child(even) { background:#ffffff06; }
+    .md blockquote { border-left:3px solid var(--accent); padding:6px 14px; color:var(--dim); margin:8px 0; background:var(--surface2); border-radius:0 6px 6px 0; font-size:.85rem; }
 
-    .key-bar input {
-      flex: 1;
-      background: var(--btn-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 6px 10px;
-      color: var(--text);
-      font-size: 0.82rem;
-      font-family: monospace;
-      outline: none;
-      max-width: 520px;
-    }
+    /* loading / error */
+    .loading { display:flex; align-items:center; gap:10px; color:var(--dim); font-size:.85rem; margin-top:50px; justify-content:center; }
+    .spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .65s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .errbox { background:#2a0d0d; border:1px solid var(--red); border-radius:var(--radius); padding:12px 16px; color:var(--red); font-size:.83rem; line-height:1.6; }
 
-    .key-bar input:focus { border-color: var(--accent); }
+    /* output action buttons */
+    .out-actions { display:flex; gap:7px; }
+    .out-btn { padding:3px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--dim); font-size:.7rem; cursor:pointer; transition:all .12s; }
+    .out-btn:hover { border-color:var(--accent); color:var(--accent); }
 
-    .key-status {
-      font-size: 0.75rem;
-      padding: 4px 10px;
-      border-radius: 20px;
-    }
-    .key-status.ok  { background: #1a3a1a; color: var(--green); }
-    .key-status.bad { background: #3a1a1a; color: var(--red); }
-
-    /* ── Main layout ─────────────────────────────────────────── */
-    main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0;
-      overflow: hidden;
-      height: calc(100vh - 105px);
-    }
-
-    @media (max-width: 768px) {
-      main { grid-template-columns: 1fr; height: auto; }
-    }
-
-    /* ── Panel shared ────────────────────────────────────────── */
-    .panel {
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border);
-      overflow: hidden;
-    }
-
-    .panel:last-child { border-right: none; }
-
-    .panel-header {
-      padding: 12px 18px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--text-dim);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-
-    /* ── Input panel ─────────────────────────────────────────── */
-    textarea {
-      flex: 1;
-      background: var(--bg);
-      border: none;
-      resize: none;
-      padding: 16px;
-      color: var(--text);
-      font-family: 'Cascadia Code', 'Consolas', monospace;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      outline: none;
-    }
-
-    textarea::placeholder { color: var(--text-dim); }
-
-    .btn-row {
-      padding: 12px 16px;
-      display: flex;
-      gap: 8px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-
-    .btn {
-      flex: 1;
-      min-width: 80px;
-      padding: 9px 12px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--btn-bg);
-      color: var(--text);
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, transform 0.1s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-    }
-
-    .btn:hover  { background: var(--btn-hov); border-color: var(--accent); }
-    .btn:active { transform: scale(0.97); }
-
-    .btn.primary {
-      background: var(--surface2);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .btn.primary:hover { background: #1a4a80; }
-
-    .btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    /* ── Output panel ────────────────────────────────────────── */
-    .output-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 18px;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
-    }
-
-    .placeholder-msg {
-      color: var(--text-dim);
-      font-size: 0.88rem;
-      line-height: 1.7;
-      text-align: center;
-      margin-top: 60px;
-    }
-
-    .placeholder-msg .big { font-size: 2.5rem; margin-bottom: 12px; }
-
-    /* ── Mode badge ──────────────────────────────────────────── */
-    .mode-badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 20px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 14px;
-    }
-
-    .badge-explain  { background: #1a3a2a; color: #6bcb77; }
-    .badge-hint     { background: #2a2a1a; color: #ffd166; }
-    .badge-fix      { background: #3a1a1a; color: #ff6b6b; }
-    .badge-solution { background: #1a2a3a; color: var(--accent); }
-
-    /* ── Markdown rendered output ────────────────────────────── */
-    .md-output h1, .md-output h2, .md-output h3 {
-      color: var(--accent);
-      margin: 18px 0 8px;
-    }
-
-    .md-output h1 { font-size: 1.2rem; }
-    .md-output h2 { font-size: 1.05rem; }
-    .md-output h3 { font-size: 0.95rem; }
-
-    .md-output p  { margin: 8px 0; line-height: 1.7; }
-    .md-output ul, .md-output ol { margin: 8px 0 8px 22px; line-height: 1.7; }
-    .md-output li { margin: 3px 0; }
-
-    .md-output pre {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin: 12px 0;
-      overflow-x: auto;
-    }
-
-    .md-output pre code {
-      font-family: 'Cascadia Code', 'Consolas', monospace;
-      font-size: 0.82rem;
-      line-height: 1.55;
-    }
-
-    .md-output code:not(pre code) {
-      background: var(--btn-bg);
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-family: 'Cascadia Code', 'Consolas', monospace;
-      font-size: 0.85em;
-      color: var(--accent);
-    }
-
-    .md-output table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 12px 0;
-      font-size: 0.85rem;
-    }
-
-    .md-output th, .md-output td {
-      border: 1px solid var(--border);
-      padding: 7px 12px;
-      text-align: left;
-    }
-
-    .md-output th { background: var(--surface); color: var(--accent); }
-    .md-output tr:nth-child(even) { background: #ffffff08; }
-
-    .md-output blockquote {
-      border-left: 3px solid var(--accent);
-      padding-left: 14px;
-      color: var(--text-dim);
-      margin: 10px 0;
-    }
-
-    /* ── Spinner ─────────────────────────────────────────────── */
-    .spinner {
-      display: inline-block;
-      width: 18px; height: 18px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .thinking {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--text-dim);
-      font-size: 0.88rem;
-      margin-top: 40px;
-      justify-content: center;
-    }
-
-    /* ── Error box ───────────────────────────────────────────── */
-    .error-box {
-      background: #3a1a1a;
-      border: 1px solid var(--red);
-      border-radius: var(--radius);
-      padding: 14px;
-      color: var(--red);
-      font-size: 0.85rem;
-      line-height: 1.6;
-    }
-
-    /* ── Copy button ─────────────────────────────────────────── */
-    .copy-btn {
-      background: var(--btn-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 5px 12px;
-      color: var(--text-dim);
-      font-size: 0.75rem;
-      cursor: pointer;
-      float: right;
-      margin-bottom: 8px;
-    }
-
-    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    @media (max-width:900px) { .workspace { grid-template-columns:1fr 1fr; } .sidebar { display:none; } }
+    @media (max-width:600px) { .workspace { grid-template-columns:1fr; height:auto; } html,body { height:auto; overflow:auto; } }
   </style>
 </head>
 <body>
 
-<!-- ── Header ─────────────────────────────────────────────── -->
-<header>
+<div class="topbar">
   <div class="logo">C</div>
-  <h1>C Assistant</h1>
-  <p>Powered by Groq &bull; llama-3.3-70b-versatile</p>
-</header>
-
-<!-- ── API Key bar ────────────────────────────────────────── -->
-<div class="key-bar">
-  <label>Groq API Key:</label>
-  <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" />
-  <span class="key-status bad" id="keyStatus">No key</span>
+  <div>
+    <h1>C Assistant</h1>
+    <div class="sub">Expert-level C coding AI &bull; llama-3.3-70b</div>
+  </div>
+  <div class="key-wrap">
+    <label>Groq API Key</label>
+    <input type="password" id="apiKey" placeholder="gsk_..." />
+    <span class="badge bad" id="keyBadge">No key</span>
+  </div>
 </div>
 
-<!-- ── Main ──────────────────────────────────────────────── -->
-<main>
+<div class="workspace">
 
-  <!-- Input panel -->
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-title">Try These</div>
+    <div class="examples" id="exampleList"></div>
+    <div class="sidebar-divider">History</div>
+    <div class="history" id="historyList">
+      <div style="padding:6px 10px;font-size:.73rem;color:var(--border)">No history yet</div>
+    </div>
+  </div>
+
+  <!-- Input -->
   <div class="panel">
-    <div class="panel-header">Your Code / Question</div>
+    <div class="panel-hdr">
+      Your Code / Question
+      <span class="chars" id="charCount">0 chars</span>
+    </div>
     <textarea id="inputArea"
-      placeholder="Paste your C code or describe a problem here...&#10;&#10;Examples:&#10;- Paste broken code and click Fix&#10;- Describe a problem and click Solution&#10;- Paste working code and click Explain"></textarea>
+      placeholder="Paste your C code or describe a problem...&#10;&#10;  • Describe a LeetCode problem → Solution&#10;  • Paste broken code → Fix&#10;  • Paste working code → Explain"></textarea>
     <div class="btn-row">
       <button class="btn" onclick="ask('explain')">&#129504; Explain</button>
       <button class="btn" onclick="ask('hint')">&#128161; Hint</button>
       <button class="btn" onclick="ask('fix')">&#128295; Fix</button>
-      <button class="btn primary" onclick="ask('solution')">&#128187; Solution</button>
-      <button class="btn" onclick="clearAll()" style="flex:0;min-width:40px;color:var(--red)">&#10005;</button>
+      <button class="btn solution" onclick="ask('solution')">&#128187; Solution</button>
+      <button class="btn clear" onclick="clearAll()">&#10005;</button>
     </div>
   </div>
 
-  <!-- Output panel -->
+  <!-- Output -->
   <div class="panel">
-    <div class="panel-header">
+    <div class="panel-hdr">
       Response
-      <button class="copy-btn" id="copyBtn" onclick="copyResponse()" style="display:none">Copy</button>
+      <div class="out-actions" id="outActions"></div>
     </div>
-    <div class="output-area" id="outputArea">
-      <div class="placeholder-msg">
-        <div class="big">&#128187;</div>
-        Paste your C code or question on the left,<br>
-        then choose a mode below.
+    <div class="output-scroll" id="outputArea">
+      <div class="placeholder">
+        <span class="icon">&#128187;</span>
+        Paste code or a question on the left<br>and choose a mode.
       </div>
     </div>
   </div>
 
-</main>
+</div>
 
 <script>
-// ── System prompts ────────────────────────────────────────
 const PROMPTS = {
   explain:
     "You are a professional C programming expert explaining to a beginner. " +
-    "Follow this structure: (1) Restate what the code does in one sentence. " +
-    "(2) Name the algorithm or pattern used. " +
-    "(3) Explain with a real-world analogy. " +
-    "(4) Mention relevant C details (pointers, malloc, stack/heap). " +
-    "(5) State time and space complexity. No code in response.",
+    "Structure: (1) What the code does in one sentence. (2) Algorithm/pattern used. " +
+    "(3) Real-world analogy. (4) Key C details (pointers, malloc, stack/heap). " +
+    "(5) Time and space complexity. No code in response.",
 
   hint:
     "You are a C programming mentor. Give ONE focused hint only. " +
-    "Identify the right algorithm and WHY it beats simpler alternatives. " +
-    "Give one concrete directional nudge. Never write code. Never reveal the answer.",
+    "Name the right algorithm and why it beats alternatives. " +
+    "One concrete nudge. Never write code. Never reveal the full answer.",
 
   fix:
-    "You are a C code debugger. " +
-    "Find every bug (logic errors, memory leaks, undefined behaviour, off-by-one). " +
-    "Return the COMPLETE corrected C code — no placeholders, no ellipsis. " +
-    "Then add 'Bugs fixed:' listing each change and why. " +
-    "Code must compile cleanly under gcc -Wall -Wextra.",
+    "You are a C code debugger. Find every bug: logic errors, memory leaks, undefined behaviour, " +
+    "off-by-one, dangling pointers, wrong struct usage, missing includes. " +
+    "Return COMPLETE corrected C code. Then list 'Bugs fixed:' with each change and why. " +
+    "Must compile under gcc -Wall -Wextra.",
 
   solution:
-    "You are an expert-level C programming and competitive programming assistant. " +
-    "Before writing any code, follow these steps STRICTLY: " +
-    "(1) APPROACHES: List ALL possible approaches with time and space complexity for each. " +
-    "(2) REJECTION: Explicitly reject every non-optimal approach with a one-line reason. " +
-    "(3) BEST APPROACH: State the chosen approach and justify it in one line. " +
-    "(4) IMPLEMENTATION: Write clean, production-level C code — no pseudo-code, correct memory management, " +
-        "NULL-check every malloc, guard every function entry against NULL inputs, " +
-        "free() ALL memory on EVERY return path including early returns and error paths. " +
-    "(5) DRY RUN: Trace the example step by step. Label as 'Expected output (simulated)'. " +
-    "(6) EDGE CASES: List 3 tricky inputs and expected outputs. " +
-    "Complexity rules: Prefer O(n) over O(n^2). Prefer O(1) space over O(n) when feasible. " +
-    "If an optimal O(n) solution exists, do NOT implement O(n^2). " +
-    "Data structure rules: " +
-    "HASH MAP: Never index array by key unless key range is bounded. For LRU Cache use table size MAX_KEY+1 (10001). " +
-    "Track size separately from capacity. After eviction set hashTable[evicted->key]=NULL. " +
-    "PRIORITY QUEUE: Never use sorted linked list. Always use binary min-heap with bubbleUp/bubbleDown O(log n). " +
-    "GRAPH: Prefer adjacency list O(V+E) over adjacency matrix O(V^2) for sparse graphs. " +
-    "DIJKSTRA: Include visited[] or stale-entry check. Store (cost,node) pairs in heap. " +
-    "CONSTRAINED DIJKSTRA: Use 2D state dist[node][stops]. Single dist[] is WRONG with stop constraints. " +
+    "You are an expert-level C programming and systems engineer. " +
+    "Think like a FAANG interviewer. Follow this 7-section structure STRICTLY: " +
+    "(1) INTUITION: One sentence on the core insight. " +
+    "(2) APPROACHES: Every approach brute-force to optimal with time AND space complexity. " +
+    "(3) REJECTION: Explicitly reject every sub-optimal approach with one-line reason. " +
+    "(4) OPTIMAL CHOICE: Name it and justify in one line. " +
+    "(5) IMPLEMENTATION: Full production C code. NULL-check every malloc. Guard entries against NULL. " +
+    "free() on EVERY return path. No dangling pointers. Compiles under gcc -Wall -Wextra. " +
+    "Use helper functions — never duplicate pointer logic. " +
+    "(6) DRY RUN: Trace example step by step. Label 'Expected output (simulated)'. " +
+    "(7) SELF-CHECK: Confirm complexity matches optimal, no leaks, edge cases handled, structures appropriate. " +
+    "DATA STRUCTURE RULES: " +
+    "HASH MAP: Never array[key] unless key range is bounded. LRU table=MAX_KEY+1=10001 not capacity. " +
+    "Track size and capacity separately. After eviction: hashTable[evicted->key]=NULL. " +
+    "PRIORITY QUEUE: Never sorted linked list. Binary min-heap with bubbleUp/bubbleDown O(log n). " +
+    "GRAPH: Adjacency list O(V+E) over matrix O(V^2). " +
+    "DIJKSTRA: Stale-entry check. Heap stores (cost,node). Include visited[]. " +
+    "CONSTRAINED DIJKSTRA: dist[node][stops] 2D state. Single dist[] is WRONG with stop limits. " +
+    "BITMASK DP: N<=20 subsets use dp[mask][node]. " +
     "NEVER claim tests passed unless actually executed."
 };
 
-// ── API key handling ───────────────────────────────────────
-const keyInput    = document.getElementById('apiKey');
-const keyStatus   = document.getElementById('keyStatus');
-let lastResponse  = '';
+const EXAMPLES = [
+  {tag:'easy',   name:'Reverse Linked List',       q:'Reverse a singly linked list in-place in C. O(n) time, O(1) space.'},
+  {tag:'easy',   name:'Binary Search',             q:'Binary search on a sorted int array. Return index or -1. O(log n) in C.'},
+  {tag:'easy',   name:'Valid Parentheses',         q:'Given a string of brackets, return 1 if balanced, 0 otherwise. Stack in C.'},
+  {tag:'medium', name:'LRU Cache',                 q:'Design LRU cache in C with O(1) get(key) and put(key,value). Capacity=2. Use doubly linked list + hash map.'},
+  {tag:'medium', name:'Longest Substring',         q:'Find length of longest substring without repeating characters. O(n) sliding window in C.'},
+  {tag:'medium', name:'Number of Islands',         q:'Count islands in a 2D char grid of 1s and 0s. DFS in C.'},
+  {tag:'medium', name:'Network Delay (Dijkstra)',  q:'n nodes, weighted edges times[i]=[u,v,w]. Signal from k. Time for all nodes to receive it. Dijkstra with min-heap in C.'},
+  {tag:'medium', name:'Copy List + Random Ptr',    q:'Deep copy linked list with next and random pointers. O(n) time O(1) space in C.'},
+  {tag:'hard',   name:'Cheapest Flights k stops',  q:'Cheapest flight from src to dst with at most k stops. State-space Dijkstra with dist[city][stops] in C.'},
+  {tag:'hard',   name:'Trapping Rain Water',       q:'Given height[], compute trapped water. O(n) time O(1) space two-pointer in C.'},
+];
 
-// Load saved key
-const saved = localStorage.getItem('groq_api_key');
-if (saved) { keyInput.value = saved; setKeyStatus(true); }
+let history = JSON.parse(localStorage.getItem('ca_history') || '[]');
+let lastResp = '';
 
-keyInput.addEventListener('input', () => {
-  const k = keyInput.value.trim();
-  localStorage.setItem('groq_api_key', k);
-  setKeyStatus(k.startsWith('gsk_') && k.length > 20);
+// Build examples
+const exList = document.getElementById('exampleList');
+EXAMPLES.forEach(e => {
+  const d = document.createElement('div');
+  d.className = 'ex-item';
+  d.innerHTML = `<span class="ex-tag tag-${e.tag}">${e.tag}</span><span class="ex-name">${e.name}</span>`;
+  d.onclick = () => { document.getElementById('inputArea').value = e.q; updateChars(); };
+  exList.appendChild(d);
 });
 
-function setKeyStatus(ok) {
-  keyStatus.textContent = ok ? 'Key saved' : 'No key';
-  keyStatus.className   = 'key-status ' + (ok ? 'ok' : 'bad');
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  if (!history.length) { el.innerHTML='<div style="padding:6px 10px;font-size:.73rem;color:var(--border)">No history yet</div>'; return; }
+  el.innerHTML = history.slice(-8).reverse().map((h,i) =>
+    `<div class="hist-item" onclick="loadHist(${history.length-1-i})">
+      <span class="hist-mode">[${h.mode}]</span>${h.q.slice(0,45)}...
+    </div>`).join('');
 }
 
-// ── Groq API call ──────────────────────────────────────────
-async function callGroq(systemPrompt, userMsg, apiKey) {
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization':  'Bearer ' + apiKey,
-      'Content-Type':   'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userMsg      },
-      ],
-      temperature: 0.3,
-    }),
+function loadHist(i) {
+  document.getElementById('inputArea').value = history[i].q;
+  renderOut(history[i].mode, history[i].response);
+  updateChars();
+}
+
+renderHistory();
+
+// API key
+const keyInput = document.getElementById('apiKey');
+const keyBadge = document.getElementById('keyBadge');
+const saved = localStorage.getItem('ca_key');
+if (saved) { keyInput.value = saved; updateKey(saved); }
+keyInput.addEventListener('input', () => { const k=keyInput.value.trim(); localStorage.setItem('ca_key',k); updateKey(k); });
+function updateKey(k) { const ok=k.startsWith('gsk_')&&k.length>20; keyBadge.textContent=ok?'Key ready':'No key'; keyBadge.className='badge '+(ok?'ok':'bad'); }
+
+// Char count
+const inputArea = document.getElementById('inputArea');
+function updateChars() { document.getElementById('charCount').textContent = inputArea.value.length+' chars'; }
+inputArea.addEventListener('input', updateChars);
+
+// Groq call
+async function callGroq(sys, user, key) {
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+    body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'system',content:sys},{role:'user',content:user}],temperature:0.3})
   });
-
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.error?.message || 'API error ' + resp.status);
-  return data.choices[0].message.content;
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error?.message||'API error '+r.status);
+  return d.choices[0].message.content;
 }
 
-// ── Main ask function ──────────────────────────────────────
-const BADGE = {
-  explain:  ['badge-explain',  '&#129504; Explain'],
-  hint:     ['badge-hint',     '&#128161; Hint'],
-  fix:      ['badge-fix',      '&#128295; Fix'],
-  solution: ['badge-solution', '&#128187; Solution'],
-};
+const BADGE_CLS = {explain:'tag-explain',hint:'tag-hint',fix:'tag-fix',solution:'tag-solution'};
+const BADGE_LBL = {explain:'&#129504; Explain',hint:'&#128161; Hint',fix:'&#128295; Fix',solution:'&#128187; Solution'};
 
 async function ask(mode) {
-  const apiKey = keyInput.value.trim();
-  if (!apiKey) {
-    showError('Paste your Groq API key at the top first.\nGet a free key at https://console.groq.com/keys');
-    return;
-  }
+  const key = keyInput.value.trim();
+  const q   = inputArea.value.trim();
+  if (!key) return showErr('Add your Groq API key at the top.\nGet a free key at https://console.groq.com/keys');
+  if (!q)   return showErr('Enter your code or question on the left first.');
 
-  const query = document.getElementById('inputArea').value.trim();
-  if (!query) {
-    showError('Type or paste your code / question on the left first.');
-    return;
-  }
-
-  // Disable buttons
-  document.querySelectorAll('.btn').forEach(b => b.disabled = true);
-  document.getElementById('copyBtn').style.display = 'none';
-
-  // Show spinner
-  const out = document.getElementById('outputArea');
-  out.innerHTML = `<div class="thinking"><div class="spinner"></div> Thinking…</div>`;
+  document.querySelectorAll('.btn').forEach(b=>b.disabled=true);
+  document.getElementById('outActions').innerHTML='';
+  document.getElementById('outputArea').innerHTML='<div class="loading"><div class="spinner"></div>Thinking...</div>';
 
   try {
-    const response = await callGroq(PROMPTS[mode], query, apiKey);
-    lastResponse   = response;
+    const response = await callGroq(PROMPTS[mode], q, key);
+    lastResp = response;
+    renderOut(mode, response);
+    history.push({mode, q, response});
+    if (history.length>20) history.shift();
+    localStorage.setItem('ca_history', JSON.stringify(history));
+    renderHistory();
+  } catch(e) { showErr(e.message); }
 
-    const [badgeClass, badgeLabel] = BADGE[mode];
-    out.innerHTML  =
-      `<span class="mode-badge ${badgeClass}">${badgeLabel}</span>` +
-      `<div class="md-output">${marked.parse(response)}</div>`;
-
-    // Syntax highlight code blocks
-    out.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
-    document.getElementById('copyBtn').style.display = 'inline';
-
-  } catch (err) {
-    showError(err.message);
-  }
-
-  document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+  document.querySelectorAll('.btn').forEach(b=>b.disabled=false);
 }
 
-function showError(msg) {
+function renderOut(mode, response) {
   document.getElementById('outputArea').innerHTML =
-    `<div class="error-box">&#9888; ${msg.replace(/\n/g,'<br>')}</div>`;
+    `<span class="mode-tag ${BADGE_CLS[mode]}">${BADGE_LBL[mode]}</span>` +
+    `<div class="md">${marked.parse(response)}</div>`;
+  document.getElementById('outputArea').querySelectorAll('pre code').forEach(el=>hljs.highlightElement(el));
+  document.getElementById('outActions').innerHTML =
+    `<button class="out-btn" onclick="copyResp()">Copy</button>` +
+    `<button class="out-btn" onclick="copyCode()">Copy Code</button>`;
+}
+
+function showErr(msg) {
+  document.getElementById('outputArea').innerHTML=`<div class="errbox">&#9888; ${msg.replace(/\n/g,'<br>')}</div>`;
 }
 
 function clearAll() {
-  document.getElementById('inputArea').value = '';
-  document.getElementById('outputArea').innerHTML =
-    `<div class="placeholder-msg"><div class="big">&#128187;</div>Ready.</div>`;
-  document.getElementById('copyBtn').style.display = 'none';
-  lastResponse = '';
+  inputArea.value=''; updateChars(); lastResp='';
+  document.getElementById('outputArea').innerHTML='<div class="placeholder"><span class="icon">&#128187;</span>Ready.</div>';
+  document.getElementById('outActions').innerHTML='';
 }
 
-function copyResponse() {
-  navigator.clipboard.writeText(lastResponse).then(() => {
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy', 1500);
-  });
+function copyResp() { navigator.clipboard.writeText(lastResp).then(()=>flash('Copy','Copied!')); }
+function copyCode() {
+  const code = Array.from(document.querySelectorAll('#outputArea pre code')).map(b=>b.innerText).join('\n\n');
+  if (code) navigator.clipboard.writeText(code).then(()=>flash('Copy Code','Copied!'));
+}
+function flash(orig,label) {
+  document.querySelectorAll('.out-btn').forEach(b=>{ if(b.textContent===orig){b.textContent=label;setTimeout(()=>b.textContent=orig,1500);} });
 }
 
-// Configure marked
-marked.setOptions({ breaks: true, gfm: true });
+marked.setOptions({breaks:true,gfm:true});
 </script>
 </body>
 </html>
