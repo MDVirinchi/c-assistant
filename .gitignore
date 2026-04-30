@@ -1,0 +1,14 @@
+# API keys — never commit these
+.env
+dist/.env
+
+# Build output
+dist/c-assistant.exe
+
+# Compiler toolchain — too large for GitHub (65 MB)
+tools/
+
+# Temp files
+*.tmp
+*.o
+test_report.txt
