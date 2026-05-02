@@ -23,9 +23,16 @@ static const char *GetPrompt(const char *mode) {
 
     if (strcmp(mode, "fix") == 0)
         return "You are a C code debugger. "
-               "Find every bug (logic errors, memory leaks, undefined behaviour, off-by-one). "
-               "Return the COMPLETE corrected C code — no placeholders, no ellipsis. "
-               "Then add 'Bugs fixed:' listing each change and why. "
+               "Step 1 — ANALYSIS: Identify EVERY bug in the code: "
+               "logic errors, memory leaks, undefined behaviour, buffer overflows, off-by-one errors, "
+               "null pointer dereferences, missing free() calls, wrong loop bounds. "
+               "Step 2 — FIXED CODE: Return the COMPLETE corrected C code with NO placeholders or ellipsis. "
+               "Mark every changed line with a comment: // FIXED: <reason>. "
+               "Do NOT include a main() function unless the original code had one. "
+               "Do NOT include struct/typedef definitions that LeetCode/the platform already provides. "
+               "Step 3 — BUGS FIXED: After the code, list EVERY change made with the line number and exact reason. "
+               "Format: 'Line N: <what changed> — <why>'. "
+               "If you only removed main() without fixing real logic bugs, you have missed the point — look harder. "
                "Code must compile cleanly under gcc -Wall -Wextra.";
 
     /* solution */
@@ -90,6 +97,10 @@ static const char *GetPrompt(const char *mode) {
       "Never duplicate pointer-manipulation logic — extract to helpers. "
       "Every struct that has a ->next must be a proper struct, never int* used as a list node. "
       "Always include all required #include headers. "
+      "PLATFORM RULES (LeetCode / HackerRank / competitive platforms): "
+      "Do NOT include a main() function unless the problem explicitly asks for a full standalone program. "
+      "Do NOT redefine structs or typedefs that the platform already provides "
+      "(e.g. ListNode, TreeNode, Node). Only write the required function(s). "
       "NEVER claim 'tests passed' or 'verified' unless code was actually executed.";
 }
 
@@ -112,11 +123,78 @@ static char *JsonEscape(const char *s) {
     return out;
 }
 
+/* ── Decode \uXXXX → UTF-8, write to *q, advance *pp past the 4 hex digits.
+   Handles all BMP code points (U+0000 – U+FFFF).                           */
+static void DecodeUnicode(const char **pp, char **qq) {
+    const char *p = *pp;
+    /* Read 4 hex digits */
+    unsigned int cp = 0;
+    for (int i = 0; i < 4; i++) {
+        cp <<= 4;
+        char c = *p++;
+        if      (c >= '0' && c <= '9') cp |= (unsigned)(c - '0');
+        else if (c >= 'a' && c <= 'f') cp |= (unsigned)(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F') cp |= (unsigned)(c - 'A' + 10);
+    }
+    *pp = p;
+
+    char *q = *qq;
+    if (cp < 0x80) {
+        /* 1-byte UTF-8 — covers all ASCII including < > & ' " */
+        *q++ = (char)cp;
+    } else if (cp < 0x800) {
+        /* 2-byte UTF-8 */
+        *q++ = (char)(0xC0 | (cp >> 6));
+        *q++ = (char)(0x80 | (cp & 0x3F));
+    } else {
+        /* 3-byte UTF-8 */
+        *q++ = (char)(0xE0 | (cp >> 12));
+        *q++ = (char)(0x80 | ((cp >> 6) & 0x3F));
+        *q++ = (char)(0x80 | (cp & 0x3F));
+    }
+    *qq = q;
+}
+
+/* ── Shared JSON-string unescape loop ───────────────────────────
+   p points to the first character AFTER the opening quote.
+   Writes unescaped text into *q until closing quote or end.     */
+static void UnescapeJsonString(const char **pp, char **qq, size_t limit) {
+    const char *p = *pp;
+    char       *q = *qq;
+    while (*p && (size_t)(q - *qq) < limit) {
+        if (*p == '\\' && *(p + 1)) {
+            p++;
+            switch (*p) {
+            case '"':  *q++ = '"';  p++; break;
+            case '\\': *q++ = '\\'; p++; break;
+            case '/':  *q++ = '/';  p++; break;
+            case 'n':  *q++ = '\n'; p++; break;
+            case 'r':  *q++ = '\r'; p++; break;
+            case 't':  *q++ = '\t'; p++; break;
+            case 'b':  *q++ = '\b'; p++; break;
+            case 'f':  *q++ = '\f'; p++; break;
+            case 'u':
+                /* \uXXXX — decode to UTF-8 (fixes u003c→< u003e→> u0026→&) */
+                p++;
+                DecodeUnicode(&p, &q);
+                break;
+            default:   *q++ = *p++; break;
+            }
+        } else if (*p == '"') {
+            p++;  /* skip closing quote */
+            break;
+        } else {
+            *q++ = *p++;
+        }
+    }
+    *pp = p;
+    *qq = q;
+}
+
 /* ── Pull a JSON string value by key — returns heap string ─────
    Finds  "key":"<value>"  and returns <value> unescaped.
    Returns NULL if not found.                                     */
 static char *JsonGetString(const char *json, const char *key) {
-    /* Build search pattern: "key": */
     char pat[128];
     snprintf(pat, sizeof(pat), "\"%s\"", key);
 
@@ -124,31 +202,13 @@ static char *JsonGetString(const char *json, const char *key) {
     if (!p) return NULL;
     p += strlen(pat);
 
-    /* Skip whitespace and colon */
     while (*p == ' ' || *p == ':' || *p == '\t') p++;
     if (*p != '"') return NULL;
     p++;  /* skip opening quote */
 
     char  *out = malloc(4096);
     char  *q   = out;
-    while (*p && (size_t)(q - out) < 4090) {
-        if (*p == '\\' && *(p + 1)) {
-            p++;
-            switch (*p) {
-            case '"':  *q++ = '"';  break;
-            case '\\': *q++ = '\\'; break;
-            case 'n':  *q++ = '\n'; break;
-            case 'r':  *q++ = '\r'; break;
-            case 't':  *q++ = '\t'; break;
-            default:   *q++ = *p;   break;
-            }
-        } else if (*p == '"') {
-            break;  /* end of string */
-        } else {
-            *q++ = *p;
-        }
-        p++;
-    }
+    UnescapeJsonString(&p, &q, 4090);
     *q = '\0';
     return out;
 }
@@ -159,7 +219,6 @@ static char *ExtractContent(const char *json) {
     if (strstr(json, "\"error\"")) {
         char *msg = JsonGetString(json, "message");
         if (msg && msg[0] != '\0') {
-            /* Prefix with label so user knows it's from Groq */
             char *full = malloc(strlen(msg) + 64);
             strcpy(full, "Groq error: ");
             strcat(full, msg);
@@ -177,31 +236,14 @@ static char *ExtractContent(const char *json) {
     const char *p = strstr(start, "\"content\":");
     if (!p) return strdup("Could not parse the API response.");
 
-    p += 10;  /* skip past "content": */
+    p += 10;
     while (*p == ' ') p++;
     if (*p != '"') return strdup("Unexpected response format.");
-    p++;      /* skip opening quote */
+    p++;  /* skip opening quote */
 
-    char  *out = malloc(65536);
-    char  *q   = out;
-    while (*p && (size_t)(q - out) < 65000) {
-        if (*p == '\\' && *(p + 1)) {
-            p++;
-            switch (*p) {
-            case '"':  *q++ = '"';  break;
-            case '\\': *q++ = '\\'; break;
-            case 'n':  *q++ = '\n'; break;
-            case 'r':  *q++ = '\r'; break;
-            case 't':  *q++ = '\t'; break;
-            default:   *q++ = *p;   break;
-            }
-        } else if (*p == '"') {
-            break;  /* end of JSON string */
-        } else {
-            *q++ = *p;
-        }
-        p++;
-    }
+    char *out = malloc(65536);
+    char *q   = out;
+    UnescapeJsonString(&p, &q, 65000);
     *q = '\0';
     return out;
 }

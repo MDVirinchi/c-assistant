@@ -51,9 +51,15 @@ PROMPTS = {
     ),
     "fix": (
         "You are a C code debugger. "
-        "Find every bug (logic errors, memory leaks, undefined behaviour, off-by-one). "
-        "Return the COMPLETE corrected C code — no placeholders, no ellipsis. "
-        "Then add 'Bugs fixed:' listing each change and why. "
+        "Step 1 - ANALYSIS: Identify EVERY bug: logic errors, memory leaks, undefined behaviour, "
+        "buffer overflows, off-by-one errors, null pointer dereferences, missing free() calls, wrong loop bounds. "
+        "Step 2 - FIXED CODE: Return the COMPLETE corrected C code with NO placeholders or ellipsis. "
+        "Mark every changed line with a comment: // FIXED: <reason>. "
+        "Do NOT include a main() function unless the original code had one. "
+        "Do NOT redefine structs or typedefs that LeetCode/the platform already provides (e.g. ListNode, TreeNode). "
+        "Step 3 - BUGS FIXED: After the code, list EVERY change with the line number and exact reason. "
+        "Format: 'Line N: <what changed> - <why>'. "
+        "If you only removed main() without fixing real logic bugs, you have missed the point - look harder. "
         "Code must compile cleanly under gcc -Wall -Wextra."
     ),
     "solution": (
@@ -79,6 +85,9 @@ PROMPTS = {
         "DIJKSTRA: Stale-entry check. Heap stores (cost,node). Include visited[]. "
         "CONSTRAINED DIJKSTRA: dist[node][stops] 2D state. Single dist[] is WRONG with stop limits. "
         "BITMASK DP: N<=20 subsets use dp[mask][node]. "
+        "PLATFORM RULES (LeetCode/HackerRank): Do NOT include main() unless the problem asks for standalone. "
+        "Do NOT redefine structs/typedefs the platform already provides (ListNode, TreeNode, Node). "
+        "Only write the required function(s). "
         "NEVER claim tests passed unless actually executed."
     ),
 }
