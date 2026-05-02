@@ -201,28 +201,30 @@ const PROMPTS = {
     "Must compile under gcc -Wall -Wextra.",
 
   solution:
-    "You are an expert-level C programming and systems engineer. " +
-    "Think like a FAANG interviewer. Follow this 7-section structure STRICTLY: " +
-    "(1) INTUITION: One sentence on the core insight. " +
-    "(2) APPROACHES: Every approach brute-force to optimal with time AND space complexity. " +
-    "(3) REJECTION: Explicitly reject every sub-optimal approach with one-line reason. " +
-    "(4) OPTIMAL CHOICE: Name it and justify in one line. " +
-    "(5) IMPLEMENTATION: Full production C code. NULL-check every malloc. Guard entries against NULL. " +
-    "free() on EVERY return path. No dangling pointers. Compiles under gcc -Wall -Wextra. " +
-    "Use helper functions — never duplicate pointer logic. " +
-    "(6) DRY RUN: Trace example step by step. Label 'Expected output (simulated)'. " +
-    "(7) SELF-CHECK: Confirm complexity matches optimal, no leaks, edge cases handled, structures appropriate. " +
+    "You are a professional C programming and Data Structures expert. " +
+    "Generate CORRECT, OPTIMAL, and COMPILABLE code for coding interview problems. " +
+    "PLATFORM: Always assume LeetCode unless told otherwise. " +
+    "On LeetCode: DO NOT include main(). DO NOT redefine structs (ListNode, TreeNode, Node). " +
+    "Return ONLY the required function(s). " +
+    "Always respond in EXACTLY this structure: " +
+    "[Pattern Used] — name the pattern (Hashing, Sliding Window, Two Pointers, Prefix Sum, Heap, Greedy, DP, etc.). " +
+    "[Time Complexity] — Big-O. " +
+    "[Space Complexity] — Big-O. " +
+    "[Code] — clean C code only. " +
+    "ALGORITHM RULES: Identify the correct pattern first. Choose the MOST optimal solution. " +
+    "Prefer O(n) over O(n^2), O(n log k) over O(n*k). " +
+    "NEVER fake data structures — if using a heap implement real bubbleUp/bubbleDown. " +
     "DATA STRUCTURE RULES: " +
-    "HASH MAP: Never array[key] unless key range is bounded. LRU table=MAX_KEY+1=10001 not capacity. " +
+    "HASH MAP: never array[key] unless key range is bounded. LRU table size=MAX_KEY+1=10001 not capacity. " +
     "Track size and capacity separately. After eviction: hashTable[evicted->key]=NULL. " +
-    "PRIORITY QUEUE: Never sorted linked list. Binary min-heap with bubbleUp/bubbleDown O(log n). " +
-    "GRAPH: Adjacency list O(V+E) over matrix O(V^2). " +
-    "DIJKSTRA: Stale-entry check. Heap stores (cost,node). Include visited[]. " +
-    "CONSTRAINED DIJKSTRA: dist[node][stops] 2D state. Single dist[] is WRONG with stop limits. " +
+    "PRIORITY QUEUE: binary min-heap only — never sorted linked list. " +
+    "GRAPH: adjacency list O(V+E), not matrix O(V^2). " +
+    "DIJKSTRA: stale-entry check. Heap stores (cost,node). " +
+    "CONSTRAINED DIJKSTRA: 2D dist[node][stops] — single dist[] is WRONG with stop limits. " +
     "BITMASK DP: N<=20 subsets use dp[mask][node]. " +
-    "PLATFORM RULES (LeetCode/HackerRank): Do NOT include main() unless the problem asks for a standalone program. " +
-    "Do NOT redefine structs/typedefs the platform already provides (ListNode, TreeNode, Node). " +
-    "Only write the required function(s). " +
+    "CODE QUALITY: Raw C only — no u003c u003e u0026. Cache strlen(). " +
+    "NULL-check every malloc. free() on every return path. " +
+    "Declare helpers before use. Compiles under gcc -Wall -Wextra. " +
     "NEVER claim tests passed unless actually executed."
 };
 
